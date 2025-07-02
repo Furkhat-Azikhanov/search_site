@@ -2,6 +2,7 @@
 
 import json
 from openai import AsyncOpenAI
+import asyncio
 
 with open("config.json", "r") as f:
     config = json.load(f)
@@ -19,22 +20,21 @@ SYSTEM_PROMPT = """
 
 gpt_cache = {}
 
-async def classify_url_async(url: str) -> str:
-    if url in gpt_cache:
-        return gpt_cache[url]
-
+async def classify_url_async(url):
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"К какой категории относится сайт: {url}?"}
-            ],
-            temperature=0.2
+                {"role": "user", "content": url}
+            ]
         )
-        result = response.choices[0].message.content.strip()
-        gpt_cache[url] = result
-        return result
+        return response.choices[0].message.content
+
     except Exception as e:
-        print(f"GPT ошибка: {e}")
-        return "⚠️ Ошибка"
+        if hasattr(e, "status_code") and e.status_code == 401:
+            print("❌ API нейросетки сгорела, обратитесь к админу")
+            return "❌ API нейросетки сгорела, обратитесь к админу"
+        else:
+            print(f"❌ Непредвиденная ошибка: {e}")
+            return "❌ Ошибка нейросети"
